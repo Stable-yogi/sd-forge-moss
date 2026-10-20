@@ -1,0 +1,9 @@
+{
+  "_class_name": "MOSSImagePipeline",
+  "_diffusers_version": "0.36.0",
+  "scheduler": ["diffusers", "FlowMatchEulerDiscreteScheduler"],
+  "text_encoder": ["transformers", "Qwen35TextModel"],
+  "tokenizer": ["transformers", "Qwen2Tokenizer"],
+  "transformer": ["diffusers", "MOSSImageTransformer2DModel"],
+  "vae": ["diffusers", "AutoencoderKLFlux2"]
+}
