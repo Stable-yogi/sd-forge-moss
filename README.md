@@ -32,17 +32,31 @@ On a card with more than 40 GB it picks the bf16 text encoder first, else the in
 
 ## Tested on
 
-Forge Neo `neo-2.30.1` (branch `neo`, commit `ad60793`, 21 October 2026), with an RTX 5090 (32 GB):
+Forge Neo `neo-2.30.1` (branch `neo`, commit `ad60793`, 21 October 2026) and the newer Forge Neo with built-in MOSS-Image
+(commit `c6c2b43`, 27 October 2026), with an RTX 5090 (32 GB):
 MOSS-Image SFT int8 + Qwen3.5-9B int8, 1024 x 1024, 25 steps.
 
-## When Forge Neo adds MOSS-Image itself
+## If your Forge Neo already has MOSS-Image built in
 
-The Forge Neo maker is working on built-in MOSS-Image support.
-- **You update Forge to a version with built-in MOSS:** the extension sees it and switches itself off.
-  You can then remove the folder from `extensions/`. Use Forge's own MOSS preset.
-- **You keep an older Forge:** keep the extension. It keeps working; you do not have to update Forge.
+Newer Forge Neo (from 21 October 2026) can run MOSS-Image without this extension. The extension notices this and
+leaves Forge's own MOSS-Image code, preset and settings alone.
+It still does one useful job: it finds the Qwen3.5 text encoder and the FLUX.2 VAE for you, so you only pick the checkpoint.
+- **You want that help:** keep the extension. Update it (pull the latest from this page).
+- **You pick the text encoder and VAE yourself:** you can remove the folder from `extensions/`.
+- **You see "You do not have Qwen3.5 state dict!":** you have a MOSS-Image checkpoint but no text encoder picked.
+  Update this extension, or pick the Qwen3.5 text encoder and the FLUX.2 VAE in the Forge module list.
+- **You keep an older Forge:** keep the extension. It adds MOSS-Image to Forge by itself.
 
 ## Licence
 
 Code: GPL-3.0 (see `LICENSE` and `NOTICE.md`). The model weights have their own licence from
 OpenMOSS (Apache-2.0). This project is not made or endorsed by OpenMOSS.
+
+## Spectrum speed-up (optional, off by default)
+
+Open the accordion **MOSS Spectrum speed-up** and switch it on. The extension then skips about half of the model runs and forecasts them. On a 25-step picture this makes sampling about 2x faster. The picture is close to the normal one (same scene, same skin and freckles) but small details can differ, so test it on your own prompts. It works on the first (base) pass only, not on the hires pass.
+
+- Default: 4 warm-up steps, 2 last steps, window 2, growth 0.75. Safer (about 1.6x, closer to normal): warm-up 6, last steps 3, growth 0.5, forecast mix 0.7.
+- Tested on MOSS INT8 and INT6, 1024x1024, 25 steps.
+
+Idea: Spectrum by Han et al. (arXiv:2603.01623, MIT). See `NOTICE.md`.

@@ -298,8 +298,9 @@ def _build_text_model(loader, config_path, state_dict):
     return model
 
 
-def _register_loader_wrapper():
-    """Reset the moss flag per load; a bare MOSS DiT auto-loads its text encoder + VAE."""
+def _register_loader_wrapper(native=False):
+    """Reset the moss flag per load; a bare MOSS DiT auto-loads its text encoder + VAE.
+    native=True (Forge has MOSS-Image built in): only the auto-load, Forge keeps its own flag."""
     import backend.loader as loader
     import modules.sd_models as sdm
     from backend.args import dynamic_args
@@ -309,7 +310,8 @@ def _register_loader_wrapper():
     _orig = sdm.forge_loader
 
     def _forge_loader(sd, additional_state_dicts=None):
-        dynamic_args.moss = False
+        if not native:
+            dynamic_args.moss = False
         try:
             if _bare_moss_dit(sd):
                 asd = list(additional_state_dicts or [])
@@ -339,10 +341,13 @@ def _register_loader_wrapper():
 
 
 # ---------------------------------------------------------------- UI preset
-def _register_preset():
+def _register_preset(native=False):
+    """native=True: Forge already has the moss preset and its own settings; only pre-fill the modules."""
     import modules_forge.presets as P
 
-    if getattr(P.PresetArch.choices, "_moss", False) is False:
+    if native:
+        pass
+    elif getattr(P.PresetArch.choices, "_moss", False) is False:
         _orig_choices = P.PresetArch.choices
 
         def _choices():
@@ -355,6 +360,8 @@ def _register_preset():
         P.PresetArch.choices = staticmethod(_choices)
 
     try:
+        if native:
+            raise StopIteration
         from modules import shared
 
         try:
@@ -369,6 +376,8 @@ def _register_preset():
             shared.opts.data.setdefault(k, default)
         for k, v in MOSS_PRESET_DEFAULTS.items():
             shared.opts.data.setdefault(k, v)
+    except StopIteration:
+        pass
     except Exception:
         log("preset options step skipped:\n" + traceback.format_exc())
 
@@ -383,10 +392,11 @@ def _register_preset():
             try:
                 from modules import shared
 
-                for k, v in MOSS_PRESET_DEFAULTS.items():
-                    shared.opts.data[k] = v
-                for k, v in MOSS_HIDDEN_OPTS.items():
-                    shared.opts.data.setdefault(k, v)
+                if not native:
+                    for k, v in MOSS_PRESET_DEFAULTS.items():
+                        shared.opts.data[k] = v
+                    for k, v in MOSS_HIDDEN_OPTS.items():
+                        shared.opts.data.setdefault(k, v)
                 if not (shared.opts.data.get("forge_additional_modules_moss") or []):
                     auto = [m for m in _find_modules() if m]
                     if auto:
@@ -400,7 +410,15 @@ def _register_preset():
 
 
 if _native_moss():
-    log("this Forge has MOSS-Image built in; the extension steps aside.")
+    log("this Forge has MOSS-Image built in; the extension only finds the text encoder and VAE for you.")
+    try:
+        _register_loader_wrapper(native=True)
+    except Exception:
+        log("loader wrapper skipped:\n" + traceback.format_exc())
+    try:
+        _register_preset(native=True)
+    except Exception:
+        log("preset pre-fill skipped:\n" + traceback.format_exc())
 else:
     try:
         _register_arch()
