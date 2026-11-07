@@ -35,6 +35,7 @@ On a card with more than 40 GB it picks the bf16 text encoder first, else the in
 Forge Neo `neo-2.30.1` (branch `neo`, commit `ad60793`, 21 October 2026) and the newer Forge Neo with built-in MOSS-Image
 (commit `c6c2b43`, 27 October 2026), with an RTX 5090 (32 GB):
 MOSS-Image SFT int8 + Qwen3.5-9B int8, 1024 x 1024, 25 steps.
+Mixed INT4 file (see below) loaded and drawn through this extension on Forge Neo 2.29 (RTX 5090): only the checkpoint picked, text encoder and VAE found by the extension.
 Also loaded and drawn on Forge Neo 2.29 (without built-in MOSS-Image): MOSS-Image SFT int8 + Qwen3.5-9B W4A8 GPTQ text encoder, and a normal SD 1.5 model with the extension installed.
 
 ## If your Forge Neo already has MOSS-Image built in
@@ -61,7 +62,23 @@ It still does one useful job: it finds the Qwen3.5 text encoder and the FLUX.2 V
   reported after a Forge update. Update the extension and Forge Neo to the latest. If it still happens, remove the folder from `extensions/`,
   restart Forge, and open an issue with the full error text and your Forge version.
 - **INT4 pictures look watery or smeared:** INT4 keeps only 16 different values per weight, so MOSS-Image loses fine detail. INT6, INT8 and bf16 are
-  clearly cleaner. Use INT4 only when INT6 or INT8 does not fit in your VRAM.
+  clearly cleaner. If you need a small file, use the **mixed INT4** file below instead of a plain INT4 file.
+
+## Mixed INT4: small file, INT8-like pictures
+
+A "mixed" file is INT4 almost everywhere, but the `ffn_down` layers of all 42 blocks stay INT8. Those layers are the most sensitive to rounding.
+Size: about 3.6 GB (INT4 3.0 GB, INT8 5.4 GB). In same-seed tests (1024 x 1024, 25 steps, Euler, Simple, CFG 2.5) it drew a clean face, sharp hands and
+readable sign text like the INT8 file, where plain INT4 was watery. This is a visual comparison on three prompts, not a numeric score.
+The extension loads it like any other MOSS-Image checkpoint: pick the file, nothing else.
+
+Make it yourself from an INT4 ConvRot file and the INT8 ConvRot file of the same model (CPU only, a few minutes):
+
+```
+python tools/make_mixed_int4.py --int4 moss_image_sft_int4_convrot.safetensors --int8 moss_image_sft_int8_convrot.safetensors --out moss_image_sft_int4_mixed_convrot.safetensors
+```
+
+`--parts` picks the layer types (`qkv,o,ffn_up_gate,ffn_down`) and `--blocks` the blocks (for example `0-3,38-41`). The default (`ffn_down`, all blocks)
+was the best of the recipes we compared.
 
 ## Licence
 
