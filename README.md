@@ -35,6 +35,7 @@ On a card with more than 40 GB it picks the bf16 text encoder first, else the in
 Forge Neo `neo-2.30.1` (branch `neo`, commit `ad60793`, 21 October 2026) and the newer Forge Neo with built-in MOSS-Image
 (commit `c6c2b43`, 27 October 2026), with an RTX 5090 (32 GB):
 MOSS-Image SFT int8 + Qwen3.5-9B int8, 1024 x 1024, 25 steps.
+Also loaded and drawn on Forge Neo 2.29 (without built-in MOSS-Image): MOSS-Image SFT int8 + Qwen3.5-9B W4A8 GPTQ text encoder, and a normal SD 1.5 model with the extension installed.
 
 ## If your Forge Neo already has MOSS-Image built in
 
@@ -46,6 +47,21 @@ It still does one useful job: it finds the Qwen3.5 text encoder and the FLUX.2 V
 - **You see "You do not have Qwen3.5 state dict!":** you have a MOSS-Image checkpoint but no text encoder picked.
   Update this extension, or pick the Qwen3.5 text encoder and the FLUX.2 VAE in the Forge module list.
 - **You keep an older Forge:** keep the extension. It adds MOSS-Image to Forge by itself.
+
+## Questions and fixes
+
+- **Is there a "MOSS" scheduler? Do I need an add-on for it?** No. There is no scheduler called MOSS in Forge, and the extension adds none.
+  MOSS-Image uses the normal **Euler** sampler with the normal **Simple** scheduler. The preset sets both for you.
+  The only MOSS-specific part is a fixed time shift of 5.0, which runs inside the model code. You do not set it.
+- **`using_forge_operations() got an unexpected keyword argument 'extra_dtype'`** (when loading a quantized text encoder such as the W4A8 GPTQ one):
+  your Forge Neo is older than the build that renamed this keyword. Update the extension (it now accepts both the old and the new name),
+  or update Forge Neo. If your Forge has neither name, the extension tells you so in plain words and asks you to pick a bf16 or int8 text encoder.
+- **`expected Tensor as element 0 in argument 0, but got NoneType` on every picture, also with other models:** we could not reproduce this with the
+  current extension on Forge Neo 2.29 (no built-in MOSS-Image) or on a newer Forge Neo with MOSS-Image built in; other models draw normally. It was
+  reported after a Forge update. Update the extension and Forge Neo to the latest. If it still happens, remove the folder from `extensions/`,
+  restart Forge, and open an issue with the full error text and your Forge version.
+- **INT4 pictures look watery or smeared:** INT4 keeps only 16 different values per weight, so MOSS-Image loses fine detail. INT6, INT8 and bf16 are
+  clearly cleaner. Use INT4 only when INT6 or INT8 does not fit in your VRAM.
 
 ## Licence
 

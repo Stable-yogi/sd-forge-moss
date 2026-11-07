@@ -278,20 +278,36 @@ def _build_text_model(loader, config_path, state_dict):
 
     storage_dtype = mm.text_encoder_dtype()
     state_dict_dtype = loader.utils.weight_dtype(state_dict)
-    quant_config = loader.detect_quantization(state_dict)
+    quant_config = loader.detect_quantization(state_dict) if hasattr(loader, "detect_quantization") else None
     if quant_config is not None:
         storage_dtype = state_dict_dtype
         log("Qwen3.5 text model: mixed precision")
     elif state_dict_dtype in [torch.float8_e4m3fn, torch.float8_e5m2, "nf4", "fp4", "gguf"]:
         storage_dtype = state_dict_dtype
 
+    # Forge Neo renamed this keyword (bnb_dtype -> extra_dtype, 2026-07-28); accept both
+    import inspect
+    _params = inspect.signature(loader.using_forge_operations).parameters
+    _kw = "extra_dtype" if "extra_dtype" in _params else "bnb_dtype" if "bnb_dtype" in _params else None
+
+    def _ops_kwargs(extra, **kw):
+        if extra is None:
+            return kw
+        if _kw is None:
+            raise RuntimeError(
+                "This Forge cannot load a quantized Qwen3.5 text encoder (no extra_dtype/bnb_dtype in "
+                "using_forge_operations). Update Forge Neo, or use a plain fp16/bf16 text encoder."
+            )
+        kw[_kw] = extra
+        return kw
+
     if storage_dtype in ["nf4", "fp4", "gguf"]:
         with loader.no_init_weights():
-            with loader.using_forge_operations(device=mm.cpu, dtype=mm.text_encoder_dtype(), manual_cast_enabled=False, extra_dtype=storage_dtype):
+            with loader.using_forge_operations(**_ops_kwargs(storage_dtype, device=mm.cpu, dtype=mm.text_encoder_dtype(), manual_cast_enabled=False)):
                 model = Qwen35TextModel(config)
     else:
         with loader.no_init_weights():
-            with loader.using_forge_operations(device=mm.cpu, dtype=storage_dtype, manual_cast_enabled=True, extra_dtype=quant_config):
+            with loader.using_forge_operations(**_ops_kwargs(quant_config, device=mm.cpu, dtype=storage_dtype, manual_cast_enabled=True)):
                 model = Qwen35TextModel(config)
 
     loader.load_state_dict(model, state_dict, log_name="Qwen35TextModel")
